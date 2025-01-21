@@ -1,91 +1,72 @@
 // src/services/claudeApi.js
+const CLAUDE_API_KEY = process.env.REACT_APP_CLAUDE_API_KEY;
+const API_URL = 'https://api.anthropic.com/v1/messages';
 
-const RATE_LIMIT_INTERVAL = 1000; // 1 second between requests
-let lastRequestTime = 0;
-
-class ClaudeAPIService {
+class ClaudeApiService {
   constructor() {
-    this.baseURL = process.env.REACT_APP_CLAUDE_API_URL || 'https://api.anthropic.com/v1';
-    this.apiKey = process.env.REACT_APP_CLAUDE_API_KEY;
-    this.model = 'claude-3-sonnet-20240229';
-  }
-
-  async enforceRateLimit() {
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime;
-    if (timeSinceLastRequest < RATE_LIMIT_INTERVAL) {
-      await new Promise(resolve => 
-        setTimeout(resolve, RATE_LIMIT_INTERVAL - timeSinceLastRequest)
-      );
+    if (!CLAUDE_API_KEY) {
+      console.warn('Claude API key not found. Please set REACT_APP_CLAUDE_API_KEY in your environment.');
     }
-    lastRequestTime = Date.now();
   }
 
-  async evaluateCode(code, context) {
+  async sendMessage(content, options = {}) {
     try {
-      await this.enforceRateLimit();
-      
-      const response = await fetch(`${this.baseURL}/messages`, {
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01'
+          'x-api-key': CLAUDE_API_KEY,
+          'anthropic-version': '2024-01-01'
         },
         body: JSON.stringify({
-          model: this.model,
+          model: "claude-3-sonnet-20240229",
+          max_tokens: 4096,
           messages: [{
-            role: 'user',
-            content: `Evaluate this Python code in the context of ${context}:\n\n${code}\n\nProvide feedback on:\n1. Code correctness\n2. Best practices\n3. Potential improvements\n4. Common pitfalls to avoid`
+            role: "user",
+            content
           }],
-          max_tokens: 1000
+          ...options
         })
       });
 
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to get response from Claude');
       }
 
       const data = await response.json();
       return data.content[0].text;
     } catch (error) {
-      console.error('Code evaluation error:', error);
-      throw new Error('Failed to evaluate code. Please try again.');
+      console.error('Claude API Error:', error);
+      throw new Error('Failed to communicate with Claude API');
     }
   }
 
-  async getNextLesson(currentProgress) {
-    try {
-      await this.enforceRateLimit();
+  async evaluateCode(code, topic) {
+    const prompt = `As a Python tutor, please evaluate this code in the context of learning about ${topic || 'Python basics'}:
 
-      const response = await fetch(`${this.baseURL}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [{
-            role: 'user',
-            content: `Based on the user's current progress: ${JSON.stringify(currentProgress)}, \nsuggest the next Python lesson focusing on:\n1. Current skill level\n2. Previous challenges\n3. Learning path optimization\n4. Appropriate difficulty progression`
-          }],
-          max_tokens: 1000
-        })
-      });
+${code}
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
+Please provide:
+1. Whether the code is correct
+2. Any potential improvements
+3. An explanation of what the code does
+4. Example output if applicable`;
 
-      const data = await response.json();
-      return data.content[0].text;
-    } catch (error) {
-      console.error('Next lesson error:', error);
-      throw new Error('Failed to get next lesson. Please try again.');
-    }
+    return this.sendMessage(prompt);
+  }
+
+  async getNextLesson({ currentTopic, completedLessons = [] }) {
+    const prompt = `As a Python tutor, please provide guidance for learning ${currentTopic || 'Python basics'}. 
+Context: The student has completed these lessons: ${completedLessons.join(', ') || 'None yet'}.
+
+Please provide:
+1. A brief explanation of the next concept to learn
+2. A simple example
+3. An exercise to practice`;
+
+    return this.sendMessage(prompt);
   }
 }
 
-export default new ClaudeAPIService();
+export default new ClaudeApiService();
