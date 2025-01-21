@@ -1,11 +1,9 @@
 // src/services/claudeApi.js
-const API_URL = 'http://localhost:3001/api/claude';
-
 class ClaudeApiService {
   async sendMessage(content, options = {}) {
     try {
       console.log('Sending request to Claude API...');
-      const response = await fetch(API_URL, {
+      const response = await fetch('/api/claude', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
