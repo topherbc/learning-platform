@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const Anthropic = require('@anthropic-ai/sdk');
 require('dotenv').config();
 
 const app = express();
@@ -30,11 +31,26 @@ app.post('/api/chat', async (req, res) => {
       throw new Error('Claude API key not configured');
     }
 
-    // Your Claude API logic here
-    // Example:
-    // const response = await anthropic.messages.create({...})
+    // Initialize Anthropic client
+    const anthropic = new Anthropic({
+      apiKey: CLAUDE_API_KEY,
+    });
 
-    res.json({ response: response.content });
+    // Make API call to Claude
+    const response = await anthropic.messages.create({
+      model: "claude-3-sonnet-20240229",
+      max_tokens: 1000,
+      messages: [{
+        role: "user",
+        content: message
+      }]
+    });
+
+    // Send response back to client
+    res.json({ 
+      response: response.content[0].text,
+      messageId: response.id
+    });
   } catch (error) {
     console.error('Claude API Error:', error);
     res.status(500).json({ error: 'Failed to communicate with Claude API' });
