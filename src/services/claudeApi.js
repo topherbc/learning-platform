@@ -1,49 +1,62 @@
-// src/services/claudeApi.js
 class ClaudeApiService {
-  async sendMessage(content, options = {}) {
+  constructor() {
+    this.baseUrl = process.env.REACT_APP_CLAUDE_API_URL || 'http://localhost:3001/api';
+    this.apiKey = process.env.REACT_APP_CLAUDE_API_KEY;
+  }
+
+  async sendMessage(message, context = '') {
     try {
-      console.log('Sending request to Claude API...');
-      const response = await fetch('/api/claude', {
+      const response = await fetch(`${this.baseUrl}/chat`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: "claude-3-sonnet-20240229",
-          max_tokens: 4096,
-          messages: [{
-            role: "user",
-            content: { type: "text", text: content }
-          }],
-          ...options
-        })
+          message,
+          context,
+        }),
       });
 
-      const data = await response.json();
-      
       if (!response.ok) {
-        console.error('Claude API Error Response:', data);
-        throw new Error(data.error?.message || `API Error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
       }
 
-      return data.content[0].text;
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Invalid response format: Expected JSON');
+      }
+
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error('Claude API Error:', error);
-      throw new Error('Failed to communicate with Claude API');
+      throw new Error(`Failed to communicate with Claude API: ${error.message}`);
     }
   }
 
-  async evaluateCode(code, topic) {
-    const prompt = `As a Python tutor, please evaluate this code in the context of learning about ${topic || 'Python basics'}:\n\n${code}\n\nPlease provide:\n1. Whether the code is correct\n2. Any potential improvements\n3. An explanation of what the code does\n4. Example output if applicable`;
+  async validateCode(code) {
+    try {
+      const response = await fetch(`${this.baseUrl}/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({ code }),
+      });
 
-    return this.sendMessage(prompt);
-  }
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
 
-  async getNextLesson({ currentTopic, completedLessons = [] }) {
-    const prompt = `As a Python tutor, please provide guidance for learning ${currentTopic || 'Python basics'}. \nContext: The student has completed these lessons: ${completedLessons.join(', ') || 'None yet'}.\n\nPlease provide:\n1. A brief explanation of the next concept to learn\n2. A simple example\n3. An exercise to practice`;
-
-    return this.sendMessage(prompt);
+      return await response.json();
+    } catch (error) {
+      console.error('Code validation error:', error);
+      throw new Error('Failed to validate code');
+    }
   }
 }
 
-export default new ClaudeApiService();
+export const claudeApi = new ClaudeApiService();
