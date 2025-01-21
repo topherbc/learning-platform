@@ -10,31 +10,39 @@ class ClaudeApiService {
   }
 
   async sendMessage(content, options = {}) {
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not found. Please check your .env file.');
+    }
+
     try {
+      console.log('Sending request to Claude API...'); // Debug log
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': CLAUDE_API_KEY,
-          'anthropic-version': '2024-01-01'
+          'anthropic-version': '2024-01-01',
+          'x-request-id': crypto.randomUUID()
         },
         body: JSON.stringify({
           model: "claude-3-sonnet-20240229",
           max_tokens: 4096,
           messages: [{
             role: "user",
-            content
+            content: { type: "text", text: content }
           }],
           ...options
         })
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to get response from Claude');
+        console.error('Claude API Error Response:', data); // Debug log
+        throw new Error(data.error?.message || `API Error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      console.log('Claude API Response:', data); // Debug log
       return data.content[0].text;
     } catch (error) {
       console.error('Claude API Error:', error);
