@@ -1,34 +1,94 @@
-export const lessons = [
-  {
-    id: 1,
-    topic: 'Variables',
-    introduction: 'Welcome to Python Learning! Let\'s start with variables. In Python, you can create a variable by using a name and the assignment operator (=).\n\nTry creating a variable named \'message\' with the value "Hello, Python!" like this:\n\nmessage = "Hello, Python!"',
-    expectedResponse: 'message = "Hello, Python!"',
-    hint: 'Make sure to use double quotes and match the exact message.',
-    completion: 'Great! You\'ve created your first variable. In Python, variables are like containers that store data.'
+// src/data/lessons.js
+
+export const lessons = {
+  variables: {
+    id: 'variables',
+    topic: 'Variables and Data Types',
+    description: 'Learn about Python variables and basic data types',
+    examples: [
+      {
+        description: 'Number variable',
+        code: 'age = 25\nprint(age)'
+      },
+      {
+        description: 'String variable',
+        code: 'name = "Alice"\nprint(name)'
+      }
+    ],
+    exercises: [
+      {
+        prompt: 'Create a variable called temperature and assign it the value 20.5',
+        solution: 'temperature = 20.5'
+      }
+    ]
   },
-  {
-    id: 2,
-    topic: 'Print Statement',
-    introduction: 'Now let\'s learn how to display values using print(). The print function outputs text to the screen.\n\nTry printing the message "Hello, World!" like this:\n\nprint("Hello, World!")',
-    expectedResponse: 'print("Hello, World!")',
-    hint: 'Remember to use print() with parentheses and quotes around the text.',
-    completion: 'Excellent! print() is one of the most commonly used functions in Python.'
-  },
-  {
-    id: 3,
+  
+  operations: {
+    id: 'operations',
     topic: 'Basic Operations',
-    introduction: 'Python can perform mathematical operations. Let\'s try addition.\n\nAdd two numbers: 5 + 3',
-    expectedResponse: '5 + 3',
-    hint: 'Simply type the numbers with a plus sign between them.',
-    completion: 'Perfect! Python supports all basic mathematical operations: +, -, *, and /.'
+    description: 'Learn about arithmetic and string operations in Python',
+    examples: [
+      {
+        description: 'Arithmetic operations',
+        code: 'x = 10\ny = 5\nsum = x + y\nprint(sum)'
+      }
+    ],
+    exercises: [
+      {
+        prompt: 'Calculate the product of 7 and 6',
+        solution: 'product = 7 * 6\nprint(product)'
+      }
+    ]
   },
-  {
-    id: 4,
+  
+  conditionals: {
+    id: 'conditionals',
     topic: 'Conditional Statements',
-    introduction: 'Conditional statements let us make decisions in code. Here\'s a simple if statement:\n\nTry writing: if x > 0: print("Positive")',
-    expectedResponse: 'if x > 0: print("Positive")',
-    hint: 'Make sure to include the colon (:) after the condition.',
-    completion: 'Well done! Conditional statements are fundamental for controlling program flow.'
+    description: 'Learn about if, elif, and else statements',
+    examples: [
+      {
+        description: 'Basic if statement',
+        code: 'age = 18\nif age >= 18:\n    print("Adult")\nelse:\n    print("Minor")'
+      }
+    ],
+    exercises: [
+      {
+        prompt: 'Write code to check if a number is positive or negative',
+        solution: 'number = 10\nif number > 0:\n    print("Positive")\nelse:\n    print("Negative")'
+      }
+    ]
+  },
+  
+  print: {
+    id: 'print',
+    topic: 'Print Statements',
+    description: 'Learn about output formatting and print functions',
+    examples: [
+      {
+        description: 'Basic print',
+        code: 'print("Hello, World!")'
+      },
+      {
+        description: 'Formatted print',
+        code: 'name = "Bob"\nage = 30\nprint(f"{name} is {age} years old")'
+      }
+    ],
+    exercises: [
+      {
+        prompt: 'Print your name and favorite color using string formatting',
+        solution: 'name = "Alice"\ncolor = "blue"\nprint(f"My name is {name} and I like {color}")'
+      }
+    ]
   }
-];
+};
+
+export const getLessonById = (id) => lessons[id] || null;
+
+export const getNextLesson = (currentId) => {
+  const lessonIds = Object.keys(lessons);
+  const currentIndex = lessonIds.indexOf(currentId);
+  if (currentIndex < lessonIds.length - 1) {
+    return lessons[lessonIds[currentIndex + 1]];
+  }
+  return null;
+};
