@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { getCurrentLesson } from '../data/lessons';
+import { processUserInput } from '../services/claude-api';
 
 const Chat = ({ lessonId }) => {
   const [messages, setMessages] = useLocalStorage(`chat-${lessonId}`, []);
@@ -14,7 +16,7 @@ const Chat = ({ lessonId }) => {
         content: getCurrentLesson(lessonId).introduction
       }]);
     }
-  }, [lessonId]);
+  }, [lessonId, messages.length, setMessages]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -1,25 +1,27 @@
+// AI service to process user input and provide responses
+export const processUserInput = async (input, lessonId) => {
+  try {
+    // TODO: Replace with actual Claude API integration
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: input,
+        lessonId: lessonId,
+      }),
+    });
 
-export async function callClaudeAPI(userInput, chatHistory, currentLesson) {
-  const response = await fetch('https://api.anthropic.com/v1/claude', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': process.env.REACT_APP_CLAUDE_API_KEY,
-    },
-    body: JSON.stringify({
-      prompt: `
-        The following is a conversation with a Python learning assistant. The assistant is currently teaching a lesson on ${currentLesson.title}.
-        
-        Chat history:
-        ${chatHistory.map(entry => `${entry.type === 'user' ? 'Student' : 'Assistant'}: ${entry.text}`).join('\n')}
-        
-        Student: ${userInput}
-        Assistant:`,
-      model: 'claude-v1',
-      max_tokens_to_sample: 500,
-    }),
-  });
+    if (!response.ok) {
+      throw new Error('Failed to process input');
+    }
 
-  const data = await response.json();
-  return data.completion;
-}
+    const data = await response.json();
+    return data.response;
+
+  } catch (error) {
+    console.error('Error in processUserInput:', error);
+    throw error;
+  }
+};
