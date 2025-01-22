@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { generateResponse } from '../services/claude-api';
+import { generateResponse } from '../services/api';
 import { LEARNING_STAGES, generateInitialPrompt, determineNextStage } from '../services/promptSystem';
 
 const Chat = () => {
