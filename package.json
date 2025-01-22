@@ -17,7 +17,7 @@
     "concurrently": "^8.2.2"
   },
   "scripts": {
-    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "concurrently \"PORT=3001 npm run server\" \"PORT=3002 npm run client\"",
     "server": "node server.js",
     "client": "react-scripts start",
     "dev": "npm start",
