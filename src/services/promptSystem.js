@@ -13,7 +13,7 @@ const determineInitialTopic = (goals, experience) => {
 };
 
 export const generateInitialPrompt = (userProfile) => {
-  const { experience, goals, preferredLearningStyle, timeCommitment, name } = userProfile;
+  const { experience, goals, timeCommitment, name } = userProfile;
   const initialTopic = determineInitialTopic(goals, experience);
   
   return {
@@ -34,7 +34,7 @@ How would you prefer to begin?`,
 };
 
 export const generateNextPrompt = (userProfile, currentStage, lastInteraction) => {
-  const { topic, response } = lastInteraction;
+  const { topic } = lastInteraction;
   const { experience, preferredLearningStyle } = userProfile;
 
   // Add contextual awareness based on learning style
