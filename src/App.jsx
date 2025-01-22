@@ -1,33 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Chat from './components/Chat';
-import { lessons } from './data/lessons';
+import Onboarding from './components/Onboarding';
 
-function App() {
-  const [currentCourse] = useState('basicPython');
-  const [currentModuleIndex, setCurrentModuleIndex] = useState(0);
-
-  const currentModule = lessons[currentCourse].modules[currentModuleIndex];
-
-  const handleNext = () => {
-    if (currentModuleIndex < lessons[currentCourse].modules.length - 1) {
-      setCurrentModuleIndex(currentModuleIndex + 1);
-    }
-  };
-
+const App = () => {
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-4">{currentModule.title}</h1>
-      <p className="mb-8">{currentModule.introduction}</p>
-      <Chat lesson={currentModule} />
-      <button 
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-8"
-        onClick={handleNext}
-        disabled={currentModuleIndex === lessons[currentCourse].modules.length - 1}
-      >
-        Next Lesson
-      </button>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/chat" element={<Chat />} />
+        <Route path="/" element={<Navigate to="/onboarding" replace />} />
+      </Routes>
+    </Router>
   );
-}
+};
 
 export default App;
