@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateResponse } from '../services/claude-api';
+import { LEARNING_STAGES, generateInitialPrompt, determineNextStage } from '../services/promptSystem';
 
 const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [currentStage, setCurrentStage] = useState(LEARNING_STAGES.INITIAL);
+  const [currentTopic, setCurrentTopic] = useState('');
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
@@ -16,17 +19,19 @@ const Chat = () => {
       navigate('/onboarding');
       return;
     }
-    setUserProfile(JSON.parse(profile));
+    const parsedProfile = JSON.parse(profile);
+    setUserProfile(parsedProfile);
     
-    // Initialize chat with personalized greeting
+    // Initialize chat with personalized prompt
     const initializeChat = async () => {
-      const parsedProfile = JSON.parse(profile);
-      const initialMessage = {
+      const initialPrompt = generateInitialPrompt(parsedProfile);
+      setCurrentTopic(initialPrompt.topic);
+      setMessages([{
         type: 'assistant',
-        content: `Welcome ${parsedProfile.name}! Based on your interests in ${parsedProfile.goals.join(', ')}, 
-          I'll help guide your learning journey. What would you like to focus on today?`
-      };
-      setMessages([initialMessage]);
+        content: initialPrompt.prompt,
+        topic: initialPrompt.topic,
+        stage: initialPrompt.stage
+      }]);
     };
     
     initializeChat();
@@ -46,7 +51,9 @@ const Chat = () => {
 
     const userMessage = {
       type: 'user',
-      content: input
+      content: input,
+      topic: currentTopic,
+      stage: currentStage
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -54,12 +61,28 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      const response = await generateResponse(input, userProfile);
+      // Update learning stage based on user response
+      const nextStage = determineNextStage(currentStage, input);
+      setCurrentStage(nextStage);
+
+      const response = await generateResponse(
+        { 
+          content: input, 
+          topic: currentTopic,
+          lastResponse: messages[messages.length - 1]?.content 
+        }, 
+        userProfile,
+        nextStage
+      );
+
       const assistantMessage = {
         type: 'assistant',
         content: response,
+        topic: currentTopic,
+        stage: nextStage,
         code: response.code
       };
+      
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error generating response:', error);
@@ -79,11 +102,18 @@ const Chat = () => {
       ? 'bg-blue-100 ml-auto'
       : 'bg-gray-100';
 
+    const stageIndicator = message.stage ? (
+      <div className="text-xs text-gray-500 mb-1">
+        {message.stage.charAt(0).toUpperCase() + message.stage.slice(1)} Stage
+      </div>
+    ) : null;
+
     return (
       <div
         key={index}
         className={`${messageClasses} rounded-lg p-4 my-2 max-w-3/4 break-words`}
       >
+        {stageIndicator}
         {message.code ? (
           <div>
             <p className="mb-2">{message.content}</p>
