@@ -1,7 +1,5 @@
-// AI service to process user input and provide responses
-export const processUserInput = async (input, lessonId) => {
+export const processUserInput = async (input, lessonId, conversationHistory) => {
   try {
-    // TODO: Replace with actual Claude API integration
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
@@ -9,7 +7,8 @@ export const processUserInput = async (input, lessonId) => {
       },
       body: JSON.stringify({
         message: input,
-        lessonId: lessonId,
+        lessonId,
+        conversationHistory
       }),
     });
 
@@ -19,9 +18,20 @@ export const processUserInput = async (input, lessonId) => {
 
     const data = await response.json();
     return data.response;
-
   } catch (error) {
     console.error('Error in processUserInput:', error);
     throw error;
   }
+};
+
+// Helper function to extract code blocks from messages
+export const extractCodeBlock = (message) => {
+  const codeBlockRegex = /```python([\s\S]*?)```/;
+  const match = message.match(codeBlockRegex);
+  return match ? match[1].trim() : null;
+};
+
+// Helper function to format code blocks
+export const formatCodeBlock = (code) => {
+  return `\`\`\`python\n${code}\n\`\`\``;
 };

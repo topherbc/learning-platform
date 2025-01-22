@@ -1,19 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { getCurrentLesson } from '../data/lessons';
-import { processUserInput } from '../services/claude-api';
+import { processUserInput, extractCodeBlock, formatCodeBlock } from '../services/claude-api';
 
 const Chat = ({ lessonId }) => {
   const [messages, setMessages] = useLocalStorage(`chat-${lessonId}`, []);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [currentExercise, setCurrentExercise] = useState(null);
 
   useEffect(() => {
+    const lesson = getCurrentLesson(lessonId);
+    // Find first incomplete exercise
+    const exercise = lesson.exercises.find(ex => !ex.completed);
+    setCurrentExercise(exercise);
+
     // Initialize chat with lesson intro if empty
     if (messages.length === 0) {
       setMessages([{
         role: 'assistant',
-        content: getCurrentLesson(lessonId).introduction
+        content: `${lesson.introduction}\n\nLet's start with the first exercise:\n${exercise?.prompt || 'No exercises available'}`
       }]);
     }
   }, [lessonId, messages.length, setMessages]);
@@ -22,9 +28,18 @@ const Chat = ({ lessonId }) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
 
+    // Check if input contains code block
+    const hasCode = inputValue.includes('```python');
+    let formattedInput = inputValue;
+
+    // If no code block but looks like code, wrap it
+    if (!hasCode && inputValue.includes('=')) {
+      formattedInput = formatCodeBlock(inputValue);
+    }
+
     const newMessage = {
       role: 'user',
-      content: inputValue
+      content: formattedInput
     };
 
     setMessages(prev => [...prev, newMessage]);
@@ -32,14 +47,37 @@ const Chat = ({ lessonId }) => {
     setIsLoading(true);
 
     try {
-      const response = await processUserInput(inputValue, lessonId);
+      // Convert messages to Claude API format
+      const conversationHistory = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+
+      const response = await processUserInput(
+        formattedInput, 
+        lessonId,
+        conversationHistory
+      );
+      
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: response
       }]);
+
+      // If code was submitted and evaluated correctly, update exercise status
+      const code = extractCodeBlock(formattedInput);
+      if (code && response.includes('Correct!') && currentExercise) {
+        currentExercise.completed = true;
+        const lesson = getCurrentLesson(lessonId);
+        const nextExercise = lesson.exercises.find(ex => !ex.completed);
+        setCurrentExercise(nextExercise);
+      }
     } catch (error) {
       console.error('Error processing message:', error);
-      // Show error message to user
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error processing your message. Please try again.'
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +95,7 @@ const Chat = ({ lessonId }) => {
                 : 'bg-gray-100 mr-8'
             }`}
           >
-            {message.content}
+            <div className="whitespace-pre-wrap">{message.content}</div>
           </div>
         ))}
         {isLoading && (
@@ -70,12 +108,12 @@ const Chat = ({ lessonId }) => {
       </div>
       <form onSubmit={handleSubmit} className="p-4 border-t">
         <div className="flex space-x-4">
-          <input
-            type="text"
+          <textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Type your message..."
-            className="flex-1 p-2 border rounded"
+            placeholder="Type your message or code here..."
+            className="flex-1 p-2 border rounded resize-none"
+            rows="3"
             disabled={isLoading}
           />
           <button
