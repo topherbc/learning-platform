@@ -43,12 +43,13 @@ export const generateResponse = async (userInput, userProfile, learningStage) =>
   }
 };
 
-// Keep existing progress tracking functions
 export const trackProgress = async (userProfile, interaction) => {
   try {
     const response = await fetch('/api/progress', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
       body: JSON.stringify({
         userProfile,
         interaction,
@@ -56,7 +57,10 @@ export const trackProgress = async (userProfile, interaction) => {
       }),
     });
 
-    if (!response.ok) throw new Error('Failed to track progress');
+    if (!response.ok) {
+      throw new Error('Failed to track progress');
+    }
+
     return await response.json();
   } catch (error) {
     console.error('Error tracking progress:', error);
@@ -64,10 +68,36 @@ export const trackProgress = async (userProfile, interaction) => {
   }
 };
 
-// Keep other existing helper functions...
+export const evaluateUnderstanding = async (userProfile, topic, response) => {
+  try {
+    const evaluation = await fetch('/api/evaluate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userProfile,
+        topic,
+        response
+      }),
+    });
 
-export default {
+    if (!evaluation.ok) {
+      throw new Error('Failed to evaluate understanding');
+    }
+
+    return await evaluation.json();
+  } catch (error) {
+    console.error('Error evaluating understanding:', error);
+    throw error;
+  }
+};
+
+// Define the API object with all functions
+const claudeApi = {
   generateResponse,
   trackProgress,
-  // ... other exports
+  evaluateUnderstanding
 };
+
+export default claudeApi;
