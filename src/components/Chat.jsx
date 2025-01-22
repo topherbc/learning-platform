@@ -1,146 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
-import { getCurrentLesson, DEFAULT_LESSON } from '../data/lessons';
-import { processUserInput, extractCodeBlock, formatCodeBlock } from '../services/claude-api';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { generateResponse } from '../services/claude-api';
 
-const Chat = ({ lessonId = DEFAULT_LESSON }) => {
-  const [messages, setMessages] = useLocalStorage(`chat-${lessonId}`, []);
-  const [inputValue, setInputValue] = useState('');
+const Chat = () => {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentExercise, setCurrentExercise] = useState(null);
-  const [error, setError] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const messagesEndRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    try {
-      const lesson = getCurrentLesson(lessonId);
-      if (!lesson) {
-        throw new Error('Lesson not found');
-      }
-
-      // Find first incomplete exercise
-      const exercise = lesson.exercises.find(ex => !ex.completed);
-      setCurrentExercise(exercise);
-      setError(null);
-
-      // Initialize chat with lesson intro if empty
-      if (messages.length === 0) {
-        setMessages([{
-          role: 'assistant',
-          content: `${lesson.introduction}\n\nLet's start with the first exercise:\n${exercise?.prompt || 'No exercises available'}`
-        }]);
-      }
-    } catch (err) {
-      console.error('Error in Chat component:', err);
-      setError('Failed to load lesson. Please try refreshing the page.');
+    const profile = localStorage.getItem('userProfile');
+    if (!profile) {
+      navigate('/onboarding');
+      return;
     }
-  }, [lessonId, messages.length, setMessages]);
+    setUserProfile(JSON.parse(profile));
+    
+    // Initialize chat with personalized greeting
+    const initializeChat = async () => {
+      const parsedProfile = JSON.parse(profile);
+      const initialMessage = {
+        type: 'assistant',
+        content: `Welcome ${parsedProfile.name}! Based on your interests in ${parsedProfile.goals.join(', ')}, 
+          I'll help guide your learning journey. What would you like to focus on today?`
+      };
+      setMessages([initialMessage]);
+    };
+    
+    initializeChat();
+  }, [navigate]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!inputValue.trim() || isLoading) return;
+    if (!input.trim()) return;
 
-    // Check if input contains code block
-    const hasCode = inputValue.includes('```python');
-    let formattedInput = inputValue;
-
-    // If no code block but looks like code, wrap it
-    if (!hasCode && (inputValue.includes('=') || inputValue.includes('print'))) {
-      formattedInput = formatCodeBlock(inputValue);
-    }
-
-    const newMessage = {
-      role: 'user',
-      content: formattedInput
+    const userMessage = {
+      type: 'user',
+      content: input
     };
 
-    setMessages(prev => [...prev, newMessage]);
-    setInputValue('');
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
     setIsLoading(true);
 
     try {
-      // Convert messages to Claude API format
-      const conversationHistory = messages.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-
-      const response = await processUserInput(
-        formattedInput, 
-        lessonId,
-        conversationHistory
-      );
-      
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: response
-      }]);
-
-      // If code was submitted and evaluated correctly, update exercise status
-      const code = extractCodeBlock(formattedInput);
-      if (code && response.includes('Correct!') && currentExercise) {
-        currentExercise.completed = true;
-        const lesson = getCurrentLesson(lessonId);
-        const nextExercise = lesson.exercises.find(ex => !ex.completed);
-        setCurrentExercise(nextExercise);
-      }
+      const response = await generateResponse(input, userProfile);
+      const assistantMessage = {
+        type: 'assistant',
+        content: response,
+        code: response.code
+      };
+      setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error processing message:', error);
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Sorry, I encountered an error processing your message. Please try again.'
-      }]);
+      console.error('Error generating response:', error);
+      const errorMessage = {
+        type: 'assistant',
+        content: 'I apologize, but I encountered an error. Please try again.',
+        isError: true
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-red-500">{error}</div>
-      </div>
-    );
-  }
+  const renderMessage = (message, index) => {
+    const messageClasses = message.type === 'user'
+      ? 'bg-blue-100 ml-auto'
+      : 'bg-gray-100';
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`p-4 rounded-lg ${
-              message.role === 'user' 
-                ? 'bg-blue-100 ml-8' 
-                : 'bg-gray-100 mr-8'
-            }`}
-          >
-            <div className="whitespace-pre-wrap">{message.content}</div>
+    return (
+      <div
+        key={index}
+        className={`${messageClasses} rounded-lg p-4 my-2 max-w-3/4 break-words`}
+      >
+        {message.code ? (
+          <div>
+            <p className="mb-2">{message.content}</p>
+            <pre className="bg-gray-800 text-white p-4 rounded overflow-x-auto">
+              <code>{message.code}</code>
+            </pre>
           </div>
-        ))}
-        {isLoading && (
-          <div className="flex items-center space-x-2 text-gray-500">
-            <span className="animate-bounce">●</span>
-            <span className="animate-bounce delay-100">●</span>
-            <span className="animate-bounce delay-200">●</span>
-          </div>
+        ) : (
+          <p>{message.content}</p>
         )}
       </div>
-      <form onSubmit={handleSubmit} className="p-4 border-t">
-        <div className="flex space-x-4">
-          <textarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Type your message or code here..."
-            className="flex-1 p-2 border rounded resize-none"
-            rows="3"
+    );
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-white">
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="container mx-auto max-w-4xl">
+          {messages.map((message, index) => renderMessage(message, index))}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className="border-t p-4">
+        <div className="container mx-auto max-w-4xl flex">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-1 p-2 border rounded-l focus:outline-none focus:border-blue-500"
             disabled={isLoading}
           />
           <button
             type="submit"
-            disabled={isLoading || !inputValue.trim()}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+            className="bg-blue-500 text-white px-6 py-2 rounded-r hover:bg-blue-600 focus:outline-none"
+            disabled={isLoading}
           >
-            Send
+            {isLoading ? 'Sending...' : 'Send'}
           </button>
         </div>
       </form>
