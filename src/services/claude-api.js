@@ -194,7 +194,7 @@ export const evaluateUnderstanding = async (userProfile, topic, response) => {
   }
 };
 
-export default {
+const claudeApi = {
   generateResponse,
   trackProgress,
   getLearningsuggestions,
@@ -202,3 +202,5 @@ export default {
   updateLearningPreferences,
   evaluateUnderstanding
 };
+
+export default claudeApi;
