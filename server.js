@@ -10,6 +10,9 @@ app.use(express.json());
 // Define port - check both environment variable and default
 const PORT = process.env.SERVER_PORT || 3001;
 
+// Progress tracking - in-memory store for demo
+const progressStore = new Map();
+
 // Claude API endpoint
 app.post('/api/claude', async (req, res) => {
   try {
@@ -20,8 +23,7 @@ app.post('/api/claude', async (req, res) => {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    // Here you would typically make the actual call to Claude API
-    // For now, returning a mock response
+    // Mock response for now
     const response = {
       response: `This is a response to: ${prompt}\nBased on user profile: ${JSON.stringify(userProfile)}`,
       timestamp: new Date().toISOString()
@@ -34,20 +36,63 @@ app.post('/api/claude', async (req, res) => {
   }
 });
 
+// Progress tracking endpoint
+app.post('/api/progress', (req, res) => {
+  try {
+    const { userProfile, interaction, timestamp } = req.body;
+    const userId = userProfile.id || 'anonymous';
+    
+    if (!progressStore.has(userId)) {
+      progressStore.set(userId, []);
+    }
+    
+    const userProgress = progressStore.get(userId);
+    userProgress.push({ interaction, timestamp });
+    
+    res.json({ 
+      success: true, 
+      progress: userProgress 
+    });
+  } catch (error) {
+    console.error('Progress Tracking Error:', error);
+    res.status(500).json({ error: 'Failed to track progress' });
+  }
+});
+
+// Get progress history
+app.get('/api/progress/:userId', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const progress = progressStore.get(userId) || [];
+    res.json(progress);
+  } catch (error) {
+    console.error('Error fetching progress:', error);
+    res.status(500).json({ error: 'Failed to fetch progress' });
+  }
+});
+
+// Evaluation endpoint
+app.post('/api/evaluate', (req, res) => {
+  try {
+    const { userProfile, topic, response } = req.body;
+    
+    // Mock evaluation logic
+    const evaluation = {
+      understanding: 'ready_for_next',
+      confidence: 0.85,
+      recommendations: ['Practice more examples', 'Review key concepts']
+    };
+    
+    res.json(evaluation);
+  } catch (error) {
+    console.error('Evaluation Error:', error);
+    res.status(500).json({ error: 'Failed to evaluate response' });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Test route for the learning platform
-app.get('/api/lessons', (req, res) => {
-  res.json({
-    success: true,
-    message: 'API is working correctly',
-    lessons: [
-      { id: 1, title: 'Introduction to Python' }
-    ]
-  });
 });
 
 // Global error handling
