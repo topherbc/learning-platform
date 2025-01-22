@@ -36,16 +36,39 @@ export const lessons = {
   }
 };
 
+export const DEFAULT_LESSON = 'basic-python-variables';
+
 export const getCurrentLesson = (lessonId) => {
-  const [course, module] = lessonId.split('-');
+  if (!lessonId) {
+    return getDefaultLesson();
+  }
+  
+  try {
+    const [course, module] = lessonId.split('-');
+    return lessons[course]?.modules.find(m => m.id === module) || getDefaultLesson();
+  } catch (error) {
+    console.error('Error getting current lesson:', error);
+    return getDefaultLesson();
+  }
+};
+
+export const getDefaultLesson = () => {
+  const [course, module] = DEFAULT_LESSON.split('-');
   return lessons[course].modules.find(m => m.id === module);
 };
 
 export const getNextLesson = (currentLessonId) => {
-  const [course, module] = currentLessonId.split('-');
-  const courseModules = lessons[course].modules;
-  const currentIndex = courseModules.findIndex(m => m.id === module);
-  return currentIndex < courseModules.length - 1 
-    ? `${course}-${courseModules[currentIndex + 1].id}`
-    : null;
+  try {
+    const [course, module] = currentLessonId.split('-');
+    const courseModules = lessons[course]?.modules;
+    if (!courseModules) return null;
+    
+    const currentIndex = courseModules.findIndex(m => m.id === module);
+    return currentIndex < courseModules.length - 1 
+      ? `${course}-${courseModules[currentIndex + 1].id}`
+      : null;
+  } catch (error) {
+    console.error('Error getting next lesson:', error);
+    return null;
+  }
 };
