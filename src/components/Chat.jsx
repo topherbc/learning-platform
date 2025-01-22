@@ -1,39 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { getCurrentLesson } from '../data/lessons';
+import { getCurrentLesson, DEFAULT_LESSON } from '../data/lessons';
 import { processUserInput, extractCodeBlock, formatCodeBlock } from '../services/claude-api';
 
-const Chat = ({ lessonId }) => {
+const Chat = ({ lessonId = DEFAULT_LESSON }) => {
   const [messages, setMessages] = useLocalStorage(`chat-${lessonId}`, []);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentExercise, setCurrentExercise] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const lesson = getCurrentLesson(lessonId);
-    // Find first incomplete exercise
-    const exercise = lesson.exercises.find(ex => !ex.completed);
-    setCurrentExercise(exercise);
+    try {
+      const lesson = getCurrentLesson(lessonId);
+      if (!lesson) {
+        throw new Error('Lesson not found');
+      }
 
-    // Initialize chat with lesson intro if empty
-    if (messages.length === 0) {
-      setMessages([{
-        role: 'assistant',
-        content: `${lesson.introduction}\n\nLet's start with the first exercise:\n${exercise?.prompt || 'No exercises available'}`
-      }]);
+      // Find first incomplete exercise
+      const exercise = lesson.exercises.find(ex => !ex.completed);
+      setCurrentExercise(exercise);
+      setError(null);
+
+      // Initialize chat with lesson intro if empty
+      if (messages.length === 0) {
+        setMessages([{
+          role: 'assistant',
+          content: `${lesson.introduction}\n\nLet's start with the first exercise:\n${exercise?.prompt || 'No exercises available'}`
+        }]);
+      }
+    } catch (err) {
+      console.error('Error in Chat component:', err);
+      setError('Failed to load lesson. Please try refreshing the page.');
     }
   }, [lessonId, messages.length, setMessages]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isLoading) return;
 
     // Check if input contains code block
     const hasCode = inputValue.includes('```python');
     let formattedInput = inputValue;
 
     // If no code block but looks like code, wrap it
-    if (!hasCode && inputValue.includes('=')) {
+    if (!hasCode && (inputValue.includes('=') || inputValue.includes('print'))) {
       formattedInput = formatCodeBlock(inputValue);
     }
 
@@ -82,6 +93,14 @@ const Chat = ({ lessonId }) => {
       setIsLoading(false);
     }
   };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
