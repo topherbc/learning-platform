@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const Anthropic = require('@anthropic-ai/sdk');
 require('dotenv').config();
+const lessons = require('./src/data/lessons');
 
 const app = express();
 
@@ -22,7 +23,11 @@ const evaluateCode = (code, expectedOutput) => {
     
     // Compare with expected output if provided
     if (expectedOutput) {
-      // TODO: Add more sophisticated comparison
+      // If expectedOutput is an array, check if all lines are present
+      if (Array.isArray(expectedOutput)) {
+        return expectedOutput.every(line => code.includes(line.trim()));
+      }
+      // If it's a string, check if it's present
       return code.includes(expectedOutput);
     }
     
@@ -32,6 +37,11 @@ const evaluateCode = (code, expectedOutput) => {
   }
 };
 
+// Get lessons endpoint
+app.get('/api/lessons', (req, res) => {
+  res.json(lessons);
+});
+
 // Claude API endpoint
 app.post('/api/chat', async (req, res) => {
   try {
@@ -40,8 +50,12 @@ app.post('/api/chat', async (req, res) => {
     // Get current lesson content
     const currentLesson = lessons[lessonId];
     
+    if (!currentLesson) {
+      throw new Error('Lesson not found');
+    }
+
     // Construct the system prompt for Claude
-    const systemPrompt = `You are a Python programming teacher. 
+    let systemPrompt = `You are a Python programming teacher. 
 Current lesson: ${currentLesson.title}
 Concepts: ${currentLesson.concepts.join(', ')}
 Your role: Guide the student through this lesson, evaluate their code, provide feedback, and answer questions.
@@ -70,19 +84,15 @@ When evaluating code:
       }
     }
 
-    // Construct messages array with history
-    const messages = [
-      { role: "system", content: systemPrompt },
-      ...conversationHistory,
-      { role: "user", content: message }
-    ];
-
     // Make API call to Claude
     const response = await anthropic.messages.create({
       model: "claude-3-sonnet-20240229",
       max_tokens: 1000,
-      messages: messages,
-      system: systemPrompt
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...conversationHistory,
+        { role: "user", content: message }
+      ]
     });
 
     res.json({ 
