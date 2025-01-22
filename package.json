@@ -14,12 +14,13 @@
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "http-proxy-middleware": "^2.0.6"
   },
   "scripts": {
-    "start": "concurrently \"PORT=3001 npm run server\" \"PORT=3002 npm run client\"",
+    "start": "concurrently \"npm run server\" \"npm run client\"",
     "server": "node server.js",
-    "client": "react-scripts start",
+    "client": "PORT=3002 react-scripts start",
     "dev": "npm start",
     "build": "react-scripts build",
     "test": "react-scripts test",
